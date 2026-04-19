@@ -29,6 +29,12 @@ public class DefaultDatabaseSchemaStrategy implements DatabaseSchemaStrategy {
     }
 
     @Override
+    @Nullable
+    public String systemTableSchema() {
+        return schema;
+    }
+
+    @Override
     public String toString() {
         return "DefaultDatabaseSchemaStrategy{schema='" + schema + "'}";
     }

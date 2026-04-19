@@ -19,11 +19,15 @@ public class H2TransactionCacheOperatorTest extends AbstractTransactionCacheOper
 
     private Connection _con;
 
-    private Connection connection() throws SQLException {
+    protected String databaseUrl() {
+        return "jdbc:h2:mem:trans-cache-operator";
+    }
+
+    protected Connection connection() throws SQLException {
         if (_con != null) {
             return _con;
         }
-        return _con = new Driver().connect("jdbc:h2:mem:trans-cache-operator", null);
+        return _con = new Driver().connect(databaseUrl(), null);
     }
 
     @AfterEach
