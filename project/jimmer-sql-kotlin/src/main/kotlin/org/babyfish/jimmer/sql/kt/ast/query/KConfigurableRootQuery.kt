@@ -3,13 +3,15 @@ package org.babyfish.jimmer.sql.kt.ast.query
 import org.babyfish.jimmer.Page
 import org.babyfish.jimmer.Slice
 import org.babyfish.jimmer.lang.NewChain
+import org.babyfish.jimmer.sql.ast.query.LockMode
+import org.babyfish.jimmer.sql.ast.query.LockWait
 import org.babyfish.jimmer.sql.ast.query.PageFactory
 import org.babyfish.jimmer.sql.kt.ast.expression.constant
 import org.babyfish.jimmer.sql.kt.ast.expression.rowCount
 import org.babyfish.jimmer.sql.kt.ast.table.KPropsLike
 import java.sql.Connection
 
-interface KConfigurableRootQuery<P: KPropsLike, R> : KTypedRootQuery<R> {
+interface KConfigurableRootQuery<P : KPropsLike, R> : KTypedRootQuery<R> {
 
     /**
      * Ignore the sorting and pagination settings of the current query,
@@ -33,7 +35,7 @@ interface KConfigurableRootQuery<P: KPropsLike, R> : KTypedRootQuery<R> {
             .reselect { select(constant(1)) }
             .execute(con).isNotEmpty()
 
-    fun <P: Any> fetchPage(
+    fun <P : Any> fetchPage(
         pageIndex: Int,
         pageSize: Int,
         con: Connection? = null,
@@ -50,7 +52,7 @@ interface KConfigurableRootQuery<P: KPropsLike, R> : KTypedRootQuery<R> {
         limit: Int,
         offset: Int,
         con: Connection? = null
-    ) : Slice<R>
+    ): Slice<R>
 
     @NewChain
     fun <X> reselect(
@@ -83,6 +85,9 @@ interface KConfigurableRootQuery<P: KPropsLike, R> : KTypedRootQuery<R> {
 
     @NewChain
     fun forUpdate(forUpdate: Boolean = true): KConfigurableRootQuery<P, R>
+
+    @NewChain
+    fun forUpdate(lockMode: LockMode, lockWait: LockWait): KConfigurableRootQuery<P, R>
 
     /**
      * Set the hint
