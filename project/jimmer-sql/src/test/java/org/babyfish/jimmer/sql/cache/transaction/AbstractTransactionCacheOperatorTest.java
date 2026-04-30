@@ -8,6 +8,7 @@ import org.babyfish.jimmer.sql.cache.Cache;
 import org.babyfish.jimmer.sql.cache.CacheEnvironment;
 import org.babyfish.jimmer.sql.cache.CacheFactory;
 import org.babyfish.jimmer.sql.cache.TransactionCacheOperator;
+import org.babyfish.jimmer.sql.meta.DatabaseSchemaStrategy;
 import org.babyfish.jimmer.sql.common.AbstractTest;
 import org.babyfish.jimmer.sql.dialect.Dialect;
 import org.babyfish.jimmer.sql.event.TriggerType;
@@ -51,6 +52,10 @@ public abstract class AbstractTransactionCacheOperatorTest extends AbstractTest 
             cfg.setDialect(dialect());
             cfg.setTriggerType(TriggerType.TRANSACTION_ONLY);
             cfg.setCacheOperator(new TransactionCacheOperator());
+            DatabaseSchemaStrategy schemaStrategy = databaseSchemaStrategy();
+            if (schemaStrategy != null) {
+                cfg.setDatabaseSchemaStrategy(schemaStrategy);
+            }
             cfg.setCacheFactory(new CacheFactory() {
                 @Override
                 public Cache<?, ?> createObjectCache(@NotNull ImmutableType type) {
@@ -96,6 +101,10 @@ public abstract class AbstractTransactionCacheOperatorTest extends AbstractTest 
     protected abstract DataSource dataSource();
 
     protected abstract Dialect dialect();
+
+    protected DatabaseSchemaStrategy databaseSchemaStrategy() {
+        return null;
+    }
 
     private void assertDeletedKeys(Class<?> type, Object ... keys) {
         List<?> list = typeKeyMap.get(ImmutableType.get(type));

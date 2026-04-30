@@ -31,50 +31,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
 
     private static final String REASON = "REASON";
 
-    private static final String INSERT =
-            "insert into " +
-                    TABLE_NAME + "(" +
-                    IMMUTABLE_TYPE +
-                    ", " +
-                    IMMUTABLE_PROP +
-                    ", " +
-                    CACHE_KEY +
-                    ", " +
-                    REASON +
-                    ") values(?, ?, ?, ?)";
-
-    private static final String SELECT_ID_PREFIX =
-            "select " +
-                    ID +
-                    " from " +
-                    TABLE_NAME +
-                    " order by " +
-                    ID +
-                    " limit ";
-
-    private static final String SELECT_PREFIX =
-            "select " +
-                    ID +
-                    ", " +
-                    IMMUTABLE_TYPE +
-                    ", " +
-                    IMMUTABLE_PROP +
-                    ", " +
-                    CACHE_KEY +
-                    ", " +
-                    REASON +
-                    " from " +
-                    TABLE_NAME +
-                    " where " +
-                    ID +
-                    " in";
-
-    private static final String DELETE_PREFIX =
-            "delete from " +
-                    TABLE_NAME +
-                    " where " +
-                    ID +
-                    " in";
+    private Sql sql;
 
     private final JsonCodec<?> jsonCodec;
 
@@ -102,6 +59,12 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
 
     @Override
     protected void onInitialize(JSqlClientImplementor sqlClient) {
+        String schema = sqlClient.getMetadataStrategy().getSchemaStrategy().systemTableSchema();
+        String qualifiedTableName = schema == null || schema.isEmpty()
+                ? TABLE_NAME
+                : schema + "." + TABLE_NAME;
+        sql = new Sql(qualifiedTableName);
+
         ConnectionManager connectionManager = sqlClient.getConnectionManager();
         if (connectionManager == null) {
             throw new IllegalArgumentException("The `sqlClient` must support connection manager");
@@ -110,8 +73,8 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
             try {
                 try (ResultSet rs = con.getMetaData().getTables(
                         con.getCatalog(),
-                        con.getSchema(),
-                        "JIMMER_TRANS_CACHE_OPERATOR",
+                        schema == null || schema.isEmpty() ? con.getSchema() : schema,
+                        TABLE_NAME,
                         null
                 )) {
                     if (rs.next()) {
@@ -120,8 +83,8 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
                 }
                 try (ResultSet rs = con.getMetaData().getTables(
                         null,
-                        null,
-                        "jimmer_trans_cache_operator",
+                        schema == null || schema.isEmpty() ? null : schema.toLowerCase(),
+                        TABLE_NAME.toLowerCase(),
                         null
                 )) {
                     if (rs.next()) {
@@ -129,18 +92,26 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
                     }
                 }
                 try (Statement statement = con.createStatement()) {
-                    statement.execute(sqlClient.getDialect().transCacheOperatorTableDDL());
+                    String ddl = sqlClient.getDialect().transCacheOperatorTableDDL()
+                            .replace(TABLE_NAME, qualifiedTableName);
+                    statement.execute(ddl);
                 }
                 return null;
             } catch (SQLException ex) {
                 throw new ExecutionException(
-                        "Cannot create table `" +
-                                TransactionCacheOperator.TABLE_NAME +
-                                "`",
+                        "Cannot create table `" + qualifiedTableName + "`",
                         ex
                 );
             }
         });
+    }
+
+    private Sql sql() {
+        Sql s = sql;
+        if (s == null) {
+            throw new IllegalStateException("The current cache operator has not been initialized");
+        }
+        return s;
     }
 
     @Override
@@ -174,7 +145,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
     ) {
         sqlClient().getConnectionManager().execute(con -> {
             try {
-                try (PreparedStatement stmt = con.prepareStatement(INSERT)) {
+                try (PreparedStatement stmt = con.prepareStatement(sql().insert)) {
                     for (Object key : keys) {
                         stmt.setString(1, type != null ? type.toString() : null);
                         stmt.setString(2, prop != null ? prop.toString() : null);
@@ -216,7 +187,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
     }
 
     private List<Long> selectOperationIds(Connection con) {
-        String sql = SELECT_ID_PREFIX + batchSize;
+        String sql = sql().selectIdPrefix + batchSize;
         List<Long> ids = new ArrayList<>();
         try (PreparedStatement stmt = con.prepareStatement(sql)) {
             try (ResultSet rs = stmt.executeQuery()) {
@@ -233,7 +204,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
     @SuppressWarnings("unchecked")
     private Map<MergedKey, Set<Object>> getAndLockOperationKeyMap(Collection<Long> ids, Connection con) {
         StringBuilder builder = new StringBuilder();
-        builder.append(SELECT_PREFIX).append('(');
+        builder.append(sql().selectPrefix).append('(');
         for (int i = ids.size(); i > 0; --i) {
             builder.append('?');
             if (i > 1) {
@@ -289,7 +260,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
 
     private void deleteOperations(Collection<Long> ids, Connection con) {
         StringBuilder builder = new StringBuilder();
-        builder.append(DELETE_PREFIX).append('(');
+        builder.append(sql().deletePrefix).append('(');
         for (int i = ids.size(); i > 0; --i) {
             builder.append('?');
             if (i > 1) {
@@ -330,6 +301,60 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
         }
         return typeFromString(propPath.substring(0, lastDotIndex))
                 .getProp(propPath.substring(lastDotIndex + 1));
+    }
+
+    private static class Sql {
+
+        final String insert;
+
+        final String selectIdPrefix;
+
+        final String selectPrefix;
+
+        final String deletePrefix;
+
+        Sql(String qualifiedTableName) {
+            insert = "insert into " +
+                    qualifiedTableName + "(" +
+                    IMMUTABLE_TYPE +
+                    ", " +
+                    IMMUTABLE_PROP +
+                    ", " +
+                    CACHE_KEY +
+                    ", " +
+                    REASON +
+                    ") values(?, ?, ?, ?)";
+
+            selectIdPrefix = "select " +
+                    ID +
+                    " from " +
+                    qualifiedTableName +
+                    " order by " +
+                    ID +
+                    " limit ";
+
+            selectPrefix = "select " +
+                    ID +
+                    ", " +
+                    IMMUTABLE_TYPE +
+                    ", " +
+                    IMMUTABLE_PROP +
+                    ", " +
+                    CACHE_KEY +
+                    ", " +
+                    REASON +
+                    " from " +
+                    qualifiedTableName +
+                    " where " +
+                    ID +
+                    " in";
+
+            deletePrefix = "delete from " +
+                    qualifiedTableName +
+                    " where " +
+                    ID +
+                    " in";
+        }
     }
 
     private static class MergedKey {

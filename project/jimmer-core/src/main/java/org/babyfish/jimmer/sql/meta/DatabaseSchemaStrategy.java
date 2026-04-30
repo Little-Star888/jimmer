@@ -13,4 +13,9 @@ public interface DatabaseSchemaStrategy {
 
     @Nullable
     String middleTableSchema(ImmutableProp prop);
+
+    @Nullable
+    default String systemTableSchema() {
+        return null;
+    }
 }
