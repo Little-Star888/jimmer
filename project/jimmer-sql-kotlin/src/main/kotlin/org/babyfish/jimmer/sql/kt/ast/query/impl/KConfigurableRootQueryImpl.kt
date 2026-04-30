@@ -5,17 +5,14 @@ import org.babyfish.jimmer.sql.ast.impl.query.ConfigurableRootQueryImpl
 import org.babyfish.jimmer.sql.ast.impl.query.PageSource
 import org.babyfish.jimmer.sql.ast.impl.query.MutableRootQueryImpl
 import org.babyfish.jimmer.sql.ast.query.ConfigurableRootQuery
+import org.babyfish.jimmer.sql.ast.query.LockMode
+import org.babyfish.jimmer.sql.ast.query.LockWait
 import org.babyfish.jimmer.sql.ast.query.MutableRootQuery
 import org.babyfish.jimmer.sql.ast.query.PageFactory
 import org.babyfish.jimmer.sql.ast.table.BaseTable
-import org.babyfish.jimmer.sql.ast.table.Table
 import org.babyfish.jimmer.sql.ast.table.spi.TableLike
 import org.babyfish.jimmer.sql.kt.ast.query.KConfigurableRootQuery
-import org.babyfish.jimmer.sql.kt.ast.query.KMutableBaseQuery
 import org.babyfish.jimmer.sql.kt.ast.query.KMutableRootQuery
-import org.babyfish.jimmer.sql.kt.ast.table.KBaseTable
-import org.babyfish.jimmer.sql.kt.ast.table.KBaseTableSymbol
-import org.babyfish.jimmer.sql.kt.ast.table.KNonNullTable
 import org.babyfish.jimmer.sql.kt.ast.table.KPropsLike
 import org.babyfish.jimmer.sql.kt.ast.table.impl.AbstractKBaseTableImpl
 import java.sql.Connection
@@ -182,6 +179,9 @@ internal class KConfigurableRootQueryImpl<P: KPropsLike, R>(
 
     override fun forUpdate(forUpdate: Boolean): KConfigurableRootQuery<P, R> =
         KConfigurableRootQueryImpl(javaQuery.forUpdate(forUpdate))
+
+    override fun forUpdate(lockMode: LockMode, lockWait: LockWait): KConfigurableRootQuery<P, R> =
+        KConfigurableRootQueryImpl(javaQuery.forUpdate(lockMode, lockWait))
 
     override fun hint(hint: String?): KConfigurableRootQuery<P, R> =
         KConfigurableRootQueryImpl(javaQuery.hint(hint))
